@@ -4,48 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "structs.h"
 
 //definitions
 #define H 600
 #define W 800
+#define HFOV 90
+#define VFOV 45
+#define PI 3.1415926
+#define MVCNT .6
 
 static SDL_Surface* surface = NULL;
-
-//typedefs
-struct rgbcolor_struct
-{
-    int r;
-    int g;
-    int b;
-};
-typedef struct rgbcolor_struct rgbcolor;
-
-struct vector_struct
-{
-    double x;
-    double y;
-    double z;
-};
-typedef struct vector_struct vector;
-
-struct line_struct
-{
-    vector point;
-    vector direction;
-};
-typedef struct line_struct line;
-
-struct plane_struct
-{
-    vector   pointA;
-    vector   pointB;
-    vector   pointC;
-    vector   pointD;
-    vector   normal;
-    rgbcolor color;  
-};
-typedef struct plane_struct plane;
-
+vector playerPos = {0,0,0};
+vector playerViewVect = {1,0,0};
+double viewAngleH = 0;
+double viewAngleV = 0;
 
 //geo funcs
 vector crossProduct(vector va, vector vb)
@@ -92,6 +65,24 @@ vector rScaleVector(vector v, double scalar)
     return rv;
 }
 
+void normalize(vector *v)
+{
+    double largest = v->x;
+    if (v->y > v->x)
+    {
+        largest = v->y;
+    }
+    if ((v->z > v->y) && (v->z > v->x))
+    {
+        largest = v->z;
+    }
+    
+    
+    v->x = (v->x)/largest;
+    v->y = (v->y)/largest;
+    v->z = (v->z)/largest;
+}
+
 vector getIntersection(plane pln, line ln)
 {
     vector returnvector = {-1,-1,-1};
@@ -105,6 +96,7 @@ vector getIntersection(plane pln, line ln)
     returnvector = addVector( rScaleVector(ln.direction, d), ln.point );
     return returnvector;
 }
+
 
 //file i/o funcs
 void readGeometry()
@@ -125,6 +117,11 @@ void readGeometry()
 }
 
 //disp funcs
+void printVector(vector v)
+{
+    printf("x: %f, y: %f, z:%f\n", v.x, v.y, v.z);
+}
+
 int placePoint(int px, int py, rgbcolor color)
 {
     if (px < 0 || py < 0 || px > W-1 || py > H-1) return -1;
@@ -137,9 +134,6 @@ int placePoint(int px, int py, rgbcolor color)
 
 int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
 {
-    if ( p1x < 0 || p1y < 0 || p2x < 0 || p2y < 0 ) return -1;
-    if ( p1x > W-1 || p2x > W-1 || p1y > H-1 || p2y > H-1 ) return -1;
-    
     int d = 1;
     int s = p1x;
     int e = p2x;
@@ -189,10 +183,54 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
     }
 }
 
+int renderLine(line_segment ln)
+{
+    int l1x, l2x, l1y, l2y;
+    vector pointDirectionA = subtractVector(ln.pointA, playerPos);
+    vector pointDirectionB = subtractVector(ln.pointB, playerPos);
+    
+    normalize(&pointDirectionA);
+    normalize(&pointDirectionB);
+    
+    if (dotProduct(pointDirectionA, playerViewVect) > 0 )
+    {
+        double angleOffHa = acos(pointDirectionA.y) - acos(playerViewVect.y);
+        double angleOffVa = acos(pointDirectionA.z) - acos(playerViewVect.z);
+        double angleOffHb = acos(pointDirectionB.y) - acos(playerViewVect.y);
+        double angleOffVb = acos(pointDirectionB.z) - acos(playerViewVect.z);
+    
+        l1x = (int)floor(((W/2)+(((angleOffHa*(180/PI))/(HFOV/2))*(W/2))));
+        l1y = (int)floor(((H/2)+(((angleOffVa*(180/PI))/(VFOV/2))*(H/2))));
+        l2x = (int)floor(((W/2)+(((angleOffHb*(180/PI))/(HFOV/2))*(W/2))));
+        l2y = (int)floor(((H/2)+(((angleOffVb*(180/PI))/(VFOV/2))*(H/2))));
+    
+        drawLine(l1x, l1y, l2x, l2y, ln.color);
+    }
+}
+
+
 void drawScreen()
 {
-    rgbcolor c = {255,255,255};
-    drawLine(0,0,100,400,c);
+    //reset screen
+    rgbcolor c = {0,0,0};
+    int i,j;
+    for(i = 0; i < W; i++)
+    {
+        for(j = 0; j < H; j++)
+        {
+            placePoint(i,j,c);
+        }
+    }
+     
+    line_segment ln1 = { {15,2,3}, {20,-2,2}, {255,255,255} };
+    line_segment ln2 = { {15,2,3}, {15,2,0}, {255,255,255} };
+    line_segment ln3 = { {15,2,0}, {20,-2,0}, {255,255,255} };
+    line_segment ln4 = { {20,-2,2}, {20,-2,0}, {255,255,255} };
+    renderLine(ln1);
+    renderLine(ln2);
+    renderLine(ln3);
+    renderLine(ln4);
+    printVector(playerViewVect);
 }
 
 //main func
@@ -203,7 +241,6 @@ int main()
     SDL_EnableKeyRepeat(150, 30);
     SDL_ShowCursor(SDL_DISABLE);
 
-    int wsad[4]={0,0,0,0}, ground=0, falling=1, moving=0, ducking=0;
     for(;;)
     {
         SDL_LockSurface(surface);
@@ -222,6 +259,24 @@ int main()
                     switch(ev.key.keysym.sym)
                     {
                         case 'q': goto done;
+                        case 'a':
+                            viewAngleH += 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'd':
+                            viewAngleH -= 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'w': 
+                            playerPos.x += MVCNT*cos(playerViewVect.x); 
+                            playerPos.y += MVCNT*sin(playerViewVect.y);
+                            break;
+                        case 's': 
+                            playerPos.x -= MVCNT*playerViewVect.x;
+                            playerPos.y -= MVCNT*playerViewVect.y; 
+                            break;
                         default: break;
                     }
                     break;
