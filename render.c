@@ -183,11 +183,9 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
             int h;
             for(h = ns; h <= ne; h++)
             {
-                printf("h: %d, w: %d\n", h, w);
                 placePoint(w, h, color);
             }
         }
-        sleep(10);
     }
 }
 
