@@ -1,0 +1,49 @@
+//structures
+//typedefs
+
+#ifndef _STRUCTS_H
+#define _STRUCTS_H
+
+struct rgbcolor_struct
+{
+    int r;
+    int g;
+    int b;
+};
+typedef struct rgbcolor_struct rgbcolor;
+
+struct vector_struct
+{
+    double x;
+    double y;
+    double z;
+};
+typedef struct vector_struct vector;
+
+struct line_struct
+{
+    vector point;
+    vector direction;
+};
+typedef struct line_struct line;
+
+struct plane_struct
+{
+    vector   pointA;
+    vector   pointB;
+    vector   pointC;
+    vector   pointD;
+    vector   normal;
+    rgbcolor color;  
+};
+typedef struct plane_struct plane;
+
+struct line_segment_struct
+{
+    vector   pointA;
+    vector   pointB;
+    rgbcolor color;
+};
+typedef struct line_segment_struct line_segment;
+
+#endif

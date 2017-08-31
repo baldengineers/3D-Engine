@@ -1,0 +1,288 @@
+#include <stdio.h>
+#include <SDL.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "structs.h"
+
+//definitions
+#define H 600
+#define W 800
+#define HFOV 90
+#define VFOV 45
+#define PI 3.1415926
+#define MVCNT .6
+
+static SDL_Surface* surface = NULL;
+vector playerPos = {0,0,0};
+vector playerViewVect = {1,0,0};
+double viewAngleH = 0;
+double viewAngleV = 0;
+
+//geo funcs
+vector crossProduct(vector va, vector vb)
+{
+    vector rv = {va.y * vb.z - va.z * vb.y, -1*(va.x * vb.z - va.z * vb.x), va.x * vb.y - va.y * vb.x };
+    return rv;
+}
+
+double dotProduct(vector va, vector vb)
+{
+    double dot = va.x * vb.x + va.y * vb.y + va.z * vb.z;
+    return dot;
+}
+
+vector subtractVector(vector va, vector vb)
+{
+    vector rv = {va.x - vb.x, va.y - vb.y, va.z - vb.z};
+    return rv;
+}
+
+void setVector(plane *p)
+{
+    vector a = subtractVector(p->pointA, p->pointB);
+    vector b = subtractVector(p->pointC, p->pointB);
+    p->normal = crossProduct(a, b);
+}
+
+vector addVector(vector va, vector vb)
+{
+    vector rv = {va.x + vb.x, va.y + vb.y, va.z + vb.z};
+    return rv;
+}
+
+vector scaleVector(vector *v, double scalar)
+{
+    v->x = scalar*(v->x);
+    v->y = scalar*(v->y);
+    v->z = scalar*(v->z);
+}
+
+vector rScaleVector(vector v, double scalar)
+{
+    vector rv = {v.x * scalar, v.y * scalar, v.z * scalar};
+    return rv;
+}
+
+void normalize(vector *v)
+{
+    double largest = v->x;
+    if (v->y > v->x)
+    {
+        largest = v->y;
+    }
+    if ((v->z > v->y) && (v->z > v->x))
+    {
+        largest = v->z;
+    }
+    
+    
+    v->x = (v->x)/largest;
+    v->y = (v->y)/largest;
+    v->z = (v->z)/largest;
+}
+
+vector getIntersection(plane pln, line ln)
+{
+    vector returnvector = {-1,-1,-1};
+    double d;
+    if ( dotProduct(ln.direction, pln.normal) == 0 )
+    {
+        return returnvector; //lines are parallel, return default vector
+    }
+    d = ( dotProduct(subtractVector(pln.pointA, ln.point), pln.normal )) / ( dotProduct(ln.direction, pln.normal) );
+    //https://en.wikipedia.org/wiki/Line-plane_intersection#Algebraic_form
+    returnvector = addVector( rScaleVector(ln.direction, d), ln.point );
+    return returnvector;
+}
+
+
+//file i/o funcs
+void readGeometry()
+{
+    int ch, line_count = 0;
+    FILE *f = fopen("map.mp", "r");
+    
+    while(!feof(f))
+    {
+        ch = fgetc(f);
+        if(ch == '\n')
+        {
+            line_count++;
+        }
+    }
+    plane planeList[line_count];
+    
+}
+
+//disp funcs
+void printVector(vector v)
+{
+    printf("x: %f, y: %f, z:%f\n", v.x, v.y, v.z);
+}
+
+int placePoint(int px, int py, rgbcolor color)
+{
+    if (px < 0 || py < 0 || px > W-1 || py > H-1) return -1;
+    int *pix = (int*) surface->pixels;
+    int clr = pow(16,4)*color.r + pow(16,2)*color.g + color.b;
+    pix[py*W+px] = clr;
+    
+    return 0;
+}
+
+int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
+{
+    int d = 1;
+    int s = p1x;
+    int e = p2x;
+    if ( p1x > p2x ) { d = -1; s = p2x; e = p1x; }
+    
+    if ( p1x == p2x )
+    {
+        int h = abs(p1y-p2y);
+        if ( p1y > p2y )
+        {
+            for ( h = p2y; h <= p1y; h++)
+            {
+                placePoint(p1x, h, color);
+            }
+        }
+        else
+        {
+            for ( h = p1y; h <= p2y; h++)
+            {
+                placePoint(p1x, h, color);
+            }
+        }
+    }
+    else
+    {
+        int w;
+        
+        double dp1x = (double)p1x;
+        double dp2x = (double)p2x;
+        double dp1y = (double)p1y;
+        double dp2y = (double)p2y;
+        double m = (dp1y-dp2y)/(dp1x-dp2x);
+        double b = (double)(p1y - (m*p1x));
+        for ( w = s; w <= e; w+1)
+        {
+            int y  = (int)(w*m + b);
+            int ny = (int)((++w)*m + b);
+            int ns = y;
+            int ne = ny;
+            if (ny <= y) { ns = ny; ne = y; }
+            int h;
+            for(h = ns; h <= ne; h++)
+            {
+                placePoint(w, h, color);
+            }
+        }
+    }
+}
+
+int renderLine(line_segment ln)
+{
+    int l1x, l2x, l1y, l2y;
+    vector pointDirectionA = subtractVector(ln.pointA, playerPos);
+    vector pointDirectionB = subtractVector(ln.pointB, playerPos);
+    
+    normalize(&pointDirectionA);
+    normalize(&pointDirectionB);
+
+    double angleOffHa = acos(pointDirectionA.y) - acos(playerViewVect.y);
+    double angleOffVa = acos(pointDirectionA.z) - acos(playerViewVect.z);
+    double angleOffHb = acos(pointDirectionB.y) - acos(playerViewVect.y);
+    double angleOffVb = acos(pointDirectionB.z) - acos(playerViewVect.z);
+    
+    l1x = (int)floor(((W/2)+(((angleOffHa*(180/PI))/(HFOV/2))*(W/2))));
+    l1y = (int)floor(((H/2)+(((angleOffVa*(180/PI))/(VFOV/2))*(H/2))));
+    l2x = (int)floor(((W/2)+(((angleOffHb*(180/PI))/(HFOV/2))*(W/2))));
+    l2y = (int)floor(((H/2)+(((angleOffVb*(180/PI))/(VFOV/2))*(H/2))));
+    
+    drawLine(l1x, l1y, l2x, l2y, ln.color);
+}
+
+
+void drawScreen()
+{
+    //reset screen
+    rgbcolor c = {0,0,0};
+    int i,j;
+    for(i = 0; i < W; i++)
+    {
+        for(j = 0; j < H; j++)
+        {
+            placePoint(i,j,c);
+        }
+    }
+     
+    line_segment ln1 = { {15,2,3}, {20,-2,2}, {255,255,255} };
+    line_segment ln2 = { {15,2,3}, {15,2,0}, {255,255,255} };
+    line_segment ln3 = { {15,2,0}, {20,-2,0}, {255,255,255} };
+    line_segment ln4 = { {20,-2,2}, {20,-2,0}, {255,255,255} };
+    renderLine(ln1);
+    renderLine(ln2);
+    renderLine(ln3);
+    renderLine(ln4);
+    printVector(playerViewVect);
+}
+
+//main func
+int main()
+{
+    surface = SDL_SetVideoMode(W, H, 32, 0);
+
+    SDL_EnableKeyRepeat(150, 30);
+    SDL_ShowCursor(SDL_DISABLE);
+
+    for(;;)
+    {
+        SDL_LockSurface(surface);
+        drawScreen();
+        SDL_UnlockSurface(surface);
+        SDL_Flip(surface);
+
+
+        SDL_Event ev;
+        while(SDL_PollEvent(&ev))
+        {
+            switch(ev.type)
+            {
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                    switch(ev.key.keysym.sym)
+                    {
+                        case 'q': goto done;
+                        case 'a':
+                            viewAngleH += 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'd':
+                            viewAngleH -= 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'w': 
+                            playerPos.x += MVCNT*cos(playerViewVect.x); //this stuff is bad and wrong and needs to be fixed
+                            playerPos.y += MVCNT*sin(playerViewVect.y);
+                            break;
+                        case 's': 
+                            playerPos.x -= MVCNT*playerViewVect.x;
+                            playerPos.y -= MVCNT*playerViewVect.y; 
+                            break;
+                        default: break;
+                    }
+                    break;
+                case SDL_QUIT: goto done;
+            }
+        }
+        SDL_Delay(10);
+    }
+done:
+    SDL_Quit();
+    return 0;
+}
