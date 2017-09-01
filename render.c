@@ -39,7 +39,7 @@ vector subtractVector(vector va, vector vb)
     return rv;
 }
 
-void setFaces(model_t *m, face_t *faces, int facec)
+void setFaces(model_t* m, face_t* faces, int facec)
 {
 	//create a model with the given faces
     m->facec = facec;
