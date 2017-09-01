@@ -3,9 +3,9 @@
 #include <string.h>
 #include "structs.h"
 
-void setFaces(model_t* m, face_t* faces, int facec);
+void setFaces(model_t *m, face_t *faces, int facec);
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     model_t box;
     face_t faces[6] = {
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void setFaces(model_t* m, face_t* faces, int facec)
+void setFaces(model_t *m, face_t *faces, int facec)
 {
     m->facec = facec;
     m->faces = malloc(m->facec * sizeof(m)); //dynamically assign array size to box.facec
