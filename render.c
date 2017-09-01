@@ -200,7 +200,7 @@ int renderLine(line_segment ln)
     normalize(&pointDirectionA);
     normalize(&pointDirectionB);
     
-    if (dotProduct(pointDirectionA, playerViewVect) > 0 )
+     if ( (abs(viewAngleH - acos(pointDirectionB.x)*(180/PI)) < HFOV) || (abs( (360-viewAngleH) - acos(pointDirectionB.x)*(180/PI)) < HFOV) )
     {
         double angleOffHa = acos(pointDirectionA.y) - acos(playerViewVect.y);
         double angleOffVa = acos(pointDirectionA.z) - acos(playerViewVect.z);
