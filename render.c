@@ -242,7 +242,7 @@ void drawScreen()
 }
 
 //main func
-int main()
+int main(int argc, char *argv[])
 {
     surface = SDL_SetVideoMode(W, H, 32, 0);
 
