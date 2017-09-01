@@ -39,6 +39,14 @@ vector subtractVector(vector va, vector vb)
     return rv;
 }
 
+void setFaces(model_t *m, face_t *faces, int facec)
+{
+	//create a model with the given faces
+    m->facec = facec;
+    m->faces = malloc(m->facec * sizeof(m)); //dynamically assign array size to box.facec
+    memcpy(m->faces, faces, sizeof(m->faces));
+}
+
 void setVector(plane *p)
 {
     vector a = subtractVector(p->pointA, p->pointB);
