@@ -261,9 +261,16 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
             int ne = ny;
             if (ny <= y) { ns = ny; ne = y; }
             int h;
-            for(h = ns; h <= ne; h++)
+            if ( w != e )
             {
-                placePoint(w, h, color);
+                for(h = ns; h <= ne; h++)
+                {
+                    placePoint(w, h, color);
+                }
+            }
+            else
+            {
+                placePoint(w,ns,color);
             }
         }
     }

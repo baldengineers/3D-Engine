@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
     triangles[2].vertices[0] = (vector){200, -100, 200};
     triangles[2].vertices[1] = (vector){200, -50, 300};
     triangles[2].vertices[2] = (vector){200, 150, -200};
-    triangles[2].color       = (rgbcolor){255,  0,255};
+    triangles[2].color       = (rgbcolor){255,  0,  0};
 
 
 
