@@ -431,18 +431,25 @@ void drawScreen2()
             double x1 = -1*faceVertices[i][j].y;
             double y1 = faceVertices[i][j].z;
             double x2,y2;
+            rgbcolor white = {255,255,255};
             if (j == 2)
             {
                 x2 = -1*faceVertices[i][0].y;
                 y2 = faceVertices[i][0].z;
+                if ( triangles[i].vertices[0].x > 0 && triangles[i].vertices[j].x > 0)
+                {
+                    drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), triangles[i].color);
+                }
             }
             else
             {
                 x2 = -1*faceVertices[i][j+1].y;
                 y2 = faceVertices[i][j+1].z;
+                if ( triangles[i].vertices[j+1].x > 0 && triangles[i].vertices[j].x > 0 )
+                {
+                    drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), triangles[i].color);
+                }
             }
-            rgbcolor white = {255,255,255};
-            drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), white);
         }
     
     }
@@ -461,12 +468,15 @@ int main(int argc, char *argv[])
     triangles[0].vertices[0] = (vector){300, -100, 200};
     triangles[0].vertices[1] = (vector){300, -50, 300};
     triangles[0].vertices[2] = (vector){300, 150, -200};
+    triangles[0].color       = (rgbcolor){0,   0, 255};
     triangles[1].vertices[0] = (vector){250, -100, 200};
     triangles[1].vertices[1] = (vector){250, -50, 300};
     triangles[1].vertices[2] = (vector){250, 150, -200};
+    triangles[1].color       = (rgbcolor){255,255,255};
     triangles[2].vertices[0] = (vector){200, -100, 200};
     triangles[2].vertices[1] = (vector){200, -50, 300};
     triangles[2].vertices[2] = (vector){200, 150, -200};
+    triangles[2].color       = (rgbcolor){255,  0,  0};
 
 
 
@@ -488,6 +498,12 @@ int main(int argc, char *argv[])
                     switch(ev.key.keysym.sym)
                     {
                         case 'q': goto done;
+                        case 'e':
+                            rotate(PI/180);
+                            break;
+                        case 'r':
+                            rotate(-PI/180);
+                            break;
                         case 'a':
                             moveY(10);
                             break;

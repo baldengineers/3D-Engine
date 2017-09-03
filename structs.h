@@ -44,6 +44,7 @@ typedef struct line_segment_struct
 typedef struct face
 {
     vector vertices[3];
+    rgbcolor color;
 } face_t;
 
 typedef struct model
