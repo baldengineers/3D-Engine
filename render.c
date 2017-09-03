@@ -17,7 +17,8 @@
 #define HFOV 90
 #define VFOV 45
 #define PI 3.1415926
-#define MVCNT .6
+#define MVCNT 10
+#define TRI_AMNT 3
 
 static SDL_Surface *surface = NULL;
 vector playerPos = {0,0,0};
@@ -25,7 +26,8 @@ vector playerViewVect = {1,0,0};
 double viewAngleH = 0;
 double viewAngleV = 0;
 float depthBuffer[W][H];
-vector faceVertices[][3]; //contains all the vertices on the 2D screen that are projected from the faces. 3 because that's the # of verts in a triangle
+face_t triangles[TRI_AMNT]; //in the future the length will be defined by a certain input (likely reading a file)
+vector faceVertices[TRI_AMNT][3]; //contains all the vertices on the 2D screen that are projected from the faces. 3 because that's the # of verts in a triangle
 
 //geo funcs
 vector crossProduct(vector va, vector vb)
@@ -54,7 +56,7 @@ void setFaces(model_t *m, face_t *faces, int facec)
     memcpy(m->faces, faces, sizeof(m->faces));
 }
 
-void setVector(plane *p)
+void setNormal(plane *p)
 {
     vector a = subtractVector(p->pointA, p->pointB);
     vector b = subtractVector(p->pointC, p->pointB);
@@ -145,6 +147,49 @@ int placePoint(int px, int py, rgbcolor color)
     pix[py*W+px] = clr;
 
     return 0;
+}
+
+void rotate(float angle)
+{
+    //angle is in radians
+    int i,j;
+    for (i = 0; i < TRI_AMNT; i++)
+    {
+        for (j = 0; j < 3; j++)
+        {
+            vector tp = triangles[i].vertices[j];
+            tp = (vector){tp.x*cos(angle) - tp.y*sin(angle), tp.x*sin(angle) + tp.y*cos(angle), tp.z};
+            triangles[i].vertices[j] = tp;
+        }
+    }
+}
+
+void moveX(float distance)
+{
+    int i,j;
+    for (i = 0; i < TRI_AMNT; i++)
+    {
+        for (j = 0; j < 3; j++)
+        {
+            vector tp = triangles[i].vertices[j];
+            tp = (vector){tp.x - distance, tp.y, tp.z};
+            triangles[i].vertices[j] = tp;
+        }
+    }
+}
+
+void moveY(float distance)
+{
+    int i,j;
+    for (i = 0; i < TRI_AMNT; i++)
+    {
+        for (j = 0; j < 3; j++)
+        {
+            vector tp = triangles[i].vertices[j];
+            tp = (vector){tp.x, tp.y - distance, tp.z};
+            triangles[i].vertices[j] = tp;
+        }
+    }
 }
 
 double calcLine(double p1x, double p1y, double p2x, double p2y, int type, int input)
@@ -294,7 +339,13 @@ plane getCameraPlaneCoords()
     cameraPlane.pointB = pointB;
     cameraPlane.pointC = pointC;
     cameraPlane.pointD = pointD;
-    setVector(&cameraPlane);
+    /*
+    printVector(cameraPlane.pointA);
+    printVector(cameraPlane.pointB);
+    printVector(cameraPlane.pointC);
+    printVector(cameraPlane.pointD);
+    */
+    setNormal(&cameraPlane);
     return cameraPlane;
 }
 
@@ -311,23 +362,22 @@ void drawScreen2()
         }
     }
 
-    face_t triangle;
-    triangle.vertices[0] = (vector){10, 25, 0};
-    triangle.vertices[1] = (vector){-10, 20, 5};
-    triangle.vertices[2] = (vector){10, 25, 10};
     plane cameraPlane = getCameraPlaneCoords();
 
     int w, h;
-    for (i = 0; i < 3; i++)
+    for (j = 0; j < TRI_AMNT; j++)
     {
-        //Get the intersection point of a ray casted from a vertex to the playerPos with the camera plane
-        vector direction = subtractVector(playerPos, triangle.vertices[i]);
-        faceVertices[0][i] = getIntersection(cameraPlane, (line){triangle.vertices[i], direction});
+        for (i = 0; i < 3; i++)
+        {
+            //Get the intersection point of a ray casted from a vertex to the playerPos with the camera plane
+            vector direction = subtractVector(playerPos, triangles[j].vertices[i]);
+            faceVertices[j][i] = getIntersection(cameraPlane, (line){triangles[j].vertices[i], direction});
+        }
     }
     //Rasterization
     //Iterate through the triangles in scene:
     //MAKE SURE THAT len() WORKS!!!!!!
-    for (i = 0; i < 1; i++)
+    for (i = 0; i < TRI_AMNT; i++)
     {
         //Iterate through pixels in window
         for (w = 0; w < W; w++)
@@ -335,19 +385,36 @@ void drawScreen2()
             for (h = 0; h < H; h++)
             {
                 //use y and z values because x is always constant (how far it is from player)
-                double x1 = faceVertices[i][0].y;
-                double y1 = faceVertices[i][0].z;
-                double x2 = faceVertices[i][1].y;
-                double y2 = faceVertices[i][1].z;
-                //Set the following to integer to get rid of decimals!
-                double y = calcLine(x1, y1, x2, y2, Y_CALC, w);
-
-                //printf("calcLine Result: %f\n h: %d\n", y, h);
-                if ((int)y == h)
+                for (j = 0; j < 3; j++)
                 {
-                    //printf("DRAW STUFF!!!!\n");
-                    rgbcolor white = {255, 255, 255};
-                    placePoint(w, h, white);
+                    double x1 = -1*faceVertices[i][j].y;
+                    double y1 = faceVertices[i][j].z;
+                    double x2,y2;
+                    if (j == 2)
+                    {
+                        x2 = -1*faceVertices[i][0].y;
+                        y2 = faceVertices[i][0].z;
+                    }
+                    else
+                    {
+                        x2 = -1*faceVertices[i][j+1].y;
+                        y2 = faceVertices[i][j+1].z;
+                    }
+                    //Set the following to integer to get rid of decimals!
+                    double y = calcLine(x1, y1, x2, y2, Y_CALC, (w- W/2));
+                    
+                    double ymax = y1; double ymin = y2;
+                    double xmax = x1; double xmin = x2;
+                    if ( y2 > y1) { ymax = y2; ymin = y1; }
+                    if ( x2 > x1) { xmax = x2; xmin = x1; }
+
+                    //printf("calcLine Result: %f\n h: %d\n", y, h);
+                    if (((int)y == (-1*h + (H/2))) && (y <= ymax) && (y >= ymin) && ( w-W/2 >= xmin ) && ( w-W/2 <= xmax ))
+                    {
+                        //printf("DRAW STUFF!!!!\n");
+                        rgbcolor white = {255, 255, 255};
+                        placePoint(w, h, white);
+                    }
                 }
 
             }
@@ -359,12 +426,25 @@ void drawScreen2()
 
 int main(int argc, char *argv[])
 {
-    freopen("CON", "w", stdout); // redirects stdout
-    freopen("CON", "w", stderr); // redirects stderr
+//    freopen("CON", "w", stdout); // redirects stdout
+//    freopen("CON", "w", stderr); // redirects stderr
     surface = SDL_SetVideoMode(W, H, 32, 0);
 
     SDL_EnableKeyRepeat(150, 30);
     SDL_ShowCursor(SDL_DISABLE);
+
+
+    triangles[0].vertices[0] = (vector){300, -100, 200};
+    triangles[0].vertices[1] = (vector){300, -50, 300};
+    triangles[0].vertices[2] = (vector){300, 150, -200};
+    triangles[1].vertices[0] = (vector){250, -100, 200};
+    triangles[1].vertices[1] = (vector){250, -50, 300};
+    triangles[1].vertices[2] = (vector){250, 150, -200};
+    triangles[2].vertices[0] = (vector){200, -100, 200};
+    triangles[2].vertices[1] = (vector){200, -50, 300};
+    triangles[2].vertices[2] = (vector){200, 150, -200};
+
+
 
     for(;;)
     {
@@ -385,22 +465,16 @@ int main(int argc, char *argv[])
                     {
                         case 'q': goto done;
                         case 'a':
-                            viewAngleH += 1;
-                            playerViewVect.x = cos(viewAngleH*(PI/180));
-                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            moveY(10);
                             break;
                         case 'd':
-                            viewAngleH -= 1;
-                            playerViewVect.x = cos(viewAngleH*(PI/180));
-                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            moveY(-10);
                             break;
                         case 'w':
-                            playerPos.x += MVCNT*cos(playerViewVect.x);
-                            playerPos.y += MVCNT*sin(playerViewVect.y);
+                            moveX(10);
                             break;
                         case 's':
-                            playerPos.x -= MVCNT*playerViewVect.x;
-                            playerPos.y -= MVCNT*playerViewVect.y;
+                            moveX(-10);
                             break;
                         default: break;
                     }
@@ -408,7 +482,7 @@ int main(int argc, char *argv[])
                 case SDL_QUIT: goto done;
             }
         }
-        SDL_Delay(10);
+//        SDL_Delay(10);
     }
 done:
     SDL_Quit();
