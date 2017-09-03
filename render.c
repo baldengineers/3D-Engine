@@ -376,7 +376,8 @@ void drawScreen2()
     }
     //Rasterization
     //Iterate through the triangles in scene:
-    //MAKE SURE THAT len() WORKS!!!!!!
+
+/*
     for (i = 0; i < TRI_AMNT; i++)
     {
         //Iterate through pixels in window
@@ -421,6 +422,29 @@ void drawScreen2()
         //printf("done!\n");
 
         }
+    }
+    */
+    for (i = 0; i < TRI_AMNT; i++)
+    {
+        for (j = 0; j < 3; j++)
+        {
+            double x1 = -1*faceVertices[i][j].y;
+            double y1 = faceVertices[i][j].z;
+            double x2,y2;
+            if (j == 2)
+            {
+                x2 = -1*faceVertices[i][0].y;
+                y2 = faceVertices[i][0].z;
+            }
+            else
+            {
+                x2 = -1*faceVertices[i][j+1].y;
+                y2 = faceVertices[i][j+1].z;
+            }
+            rgbcolor white = {255,255,255};
+            drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), white);
+        }
+    
     }
 }
 

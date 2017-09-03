@@ -482,7 +482,7 @@ int main(int argc, char *argv[])
                 case SDL_QUIT: goto done;
             }
         }
-        SDL_Delay(10);
+//        SDL_Delay(10);
     }
 done:
     SDL_Quit();
