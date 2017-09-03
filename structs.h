@@ -31,7 +31,7 @@ typedef struct plane_struct
     vector   pointC;
     vector   pointD;
     vector   normal;
-    rgbcolor color;  
+    rgbcolor color;
 } plane;
 
 typedef struct line_segment_struct
@@ -43,7 +43,7 @@ typedef struct line_segment_struct
 
 typedef struct face
 {
-    vector vectors[3];
+    vector vertices[3];
 } face_t;
 
 typedef struct model

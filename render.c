@@ -9,16 +9,23 @@
 //definitions
 #define H 600
 #define W 800
+#define X_CALC 0
+#define Y_CALC 1
+#define X 0
+#define Y 1
+#define Z 2
 #define HFOV 90
 #define VFOV 45
 #define PI 3.1415926
 #define MVCNT .6
 
-static SDL_Surface* surface = NULL;
+static SDL_Surface *surface = NULL;
 vector playerPos = {0,0,0};
 vector playerViewVect = {1,0,0};
 double viewAngleH = 0;
 double viewAngleV = 0;
+float depthBuffer[W][H];
+vector faceVertices[][3]; //contains all the vertices on the 2D screen that are projected from the faces. 3 because that's the # of verts in a triangle
 
 //geo funcs
 vector crossProduct(vector va, vector vb)
@@ -84,8 +91,8 @@ void normalize(vector *v)
     {
         largest = v->z;
     }
-    
-    
+
+
     v->x = (v->x)/largest;
     v->y = (v->y)/largest;
     v->z = (v->z)/largest;
@@ -111,7 +118,7 @@ void readGeometry()
 {
     int ch, line_count = 0;
     FILE *f = fopen("map.mp", "r");
-    
+
     while(!feof(f))
     {
         ch = fgetc(f);
@@ -121,7 +128,7 @@ void readGeometry()
         }
     }
     plane planeList[line_count];
-    
+
 }
 
 //disp funcs
@@ -136,8 +143,34 @@ int placePoint(int px, int py, rgbcolor color)
     int *pix = (int*) surface->pixels;
     int clr = pow(16,4)*color.r + pow(16,2)*color.g + color.b;
     pix[py*W+px] = clr;
-    
+
     return 0;
+}
+
+double calcLine(double p1x, double p1y, double p2x, double p2y, int type, int input)
+{
+    //Calculates a point on a line from (p1x, p1y) to (p2x, p2y),
+    //using type as what value (X_CALC or Y_CALC) you're trying to find
+    //and input for your input value
+    double m = (p1y - p2y) / (p1x - p2x);
+    double b = p1y - m * p1x;
+
+    //printf("%f - %f / %f - %f\n", p1y, p2y, p1x, p2x);
+    //printf("y = mx + b\ny = %f * %d + %f\n", m, input, b);
+
+    if (type == X_CALC)
+    {
+        //y is given, trying to find x
+        //x = (y-b)/m
+        return (input - b) / m;
+    }
+    else if (type == Y_CALC)
+    {
+        //x is given, trying to find y
+        //y = mx + b
+        return m * input + b;
+    }
+
 }
 
 int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
@@ -146,7 +179,7 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
     int s = p1x;
     int e = p2x;
     if ( p1x > p2x ) { d = -1; s = p2x; e = p1x; }
-    
+
     if ( p1x == p2x )
     {
         int h = abs(p1y-p2y);
@@ -168,7 +201,7 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
     else
     {
         int w;
-        
+
         double dp1x = (double)p1x;
         double dp2x = (double)p2x;
         double dp1y = (double)p1y;
@@ -196,22 +229,22 @@ int renderLine(line_segment ln)
     int l1x, l2x, l1y, l2y;
     vector pointDirectionA = subtractVector(ln.pointA, playerPos);
     vector pointDirectionB = subtractVector(ln.pointB, playerPos);
-    
+
     normalize(&pointDirectionA);
     normalize(&pointDirectionB);
-    
+
      if ( (abs(viewAngleH - acos(pointDirectionB.x)*(180/PI)) < HFOV) || (abs( (360-viewAngleH) - acos(pointDirectionB.x)*(180/PI)) < HFOV) )
     {
         double angleOffHa = acos(pointDirectionA.y) - acos(playerViewVect.y);
         double angleOffVa = acos(pointDirectionA.z) - acos(playerViewVect.z);
         double angleOffHb = acos(pointDirectionB.y) - acos(playerViewVect.y);
         double angleOffVb = acos(pointDirectionB.z) - acos(playerViewVect.z);
-    
+
         l1x = (int)floor(((W/2)+(((angleOffHa*(180/PI))/(HFOV/2))*(W/2))));
         l1y = (int)floor(((H/2)+(((angleOffVa*(180/PI))/(VFOV/2))*(H/2))));
         l2x = (int)floor(((W/2)+(((angleOffHb*(180/PI))/(HFOV/2))*(W/2))));
         l2y = (int)floor(((H/2)+(((angleOffVb*(180/PI))/(VFOV/2))*(H/2))));
-    
+
         drawLine(l1x, l1y, l2x, l2y, ln.color);
     }
 }
@@ -229,7 +262,7 @@ void drawScreen()
             placePoint(i,j,c);
         }
     }
-     
+
     line_segment ln1 = { {15,2,3}, {20,-2,2}, {255,255,255} };
     line_segment ln2 = { {15,2,3}, {15,2,0}, {255,255,255} };
     line_segment ln3 = { {15,2,0}, {20,-2,0}, {255,255,255} };
@@ -241,8 +274,149 @@ void drawScreen()
     printVector(playerViewVect);
 }
 
-//main func
+plane getCameraPlaneCoords()
+{
+    //Return the plane used for intersections sent from triangles (the cameraPlane)
+    vector distFromPlayer; //Assume camera is facing in positive x direction
+    distFromPlayer.x = W / 2 / tan(HFOV/2);
+    distFromPlayer.y = W / 2;
+    distFromPlayer.z = H / 2;
+
+    //Set the points of the plane - top-left, top-right, bottom-right, bottom-left
+    vector pointA = {playerPos.x + distFromPlayer.x, playerPos.y - distFromPlayer.y, playerPos.z + distFromPlayer.z};
+    vector pointB = {playerPos.x + distFromPlayer.x, playerPos.y + distFromPlayer.y, playerPos.z + distFromPlayer.z};
+    vector pointC = {playerPos.x + distFromPlayer.x, playerPos.y + distFromPlayer.y, playerPos.z - distFromPlayer.z};
+    vector pointD = {playerPos.x + distFromPlayer.x, playerPos.y - distFromPlayer.y, playerPos.z - distFromPlayer.z};
+
+    //Make the plane object and set its points/normal
+    plane cameraPlane;
+    cameraPlane.pointA = pointA;
+    cameraPlane.pointB = pointB;
+    cameraPlane.pointC = pointC;
+    cameraPlane.pointD = pointD;
+    setVector(&cameraPlane);
+    return cameraPlane;
+}
+
+void drawScreen2()
+{
+
+    rgbcolor c = {0,0,0};
+    int i,j;
+    for(i = 0; i < W; i++)
+    {
+        for(j = 0; j < H; j++)
+        {
+            placePoint(i,j,c);
+        }
+    }
+
+    face_t triangle;
+    triangle.vertices[0] = (vector){10, 25, 0};
+    triangle.vertices[1] = (vector){-10, 20, 5};
+    triangle.vertices[2] = (vector){10, 25, 10};
+    plane cameraPlane = getCameraPlaneCoords();
+
+    int w, h;
+    for (i = 0; i < 3; i++)
+    {
+        //Get the intersection point of a ray casted from a vertex to the playerPos with the camera plane
+        vector direction = subtractVector(playerPos, triangle.vertices[i]);
+        faceVertices[0][i] = getIntersection(cameraPlane, (line){triangle.vertices[i], direction});
+    }
+    //Rasterization
+    //Iterate through the triangles in scene:
+    //MAKE SURE THAT len() WORKS!!!!!!
+    for (i = 0; i < 1; i++)
+    {
+        //Iterate through pixels in window
+        for (w = 0; w < W; w++)
+        {
+            for (h = 0; h < H; h++)
+            {
+                //use y and z values because x is always constant (how far it is from player)
+                double x1 = faceVertices[i][0].y;
+                double y1 = faceVertices[i][0].z;
+                double x2 = faceVertices[i][1].y;
+                double y2 = faceVertices[i][1].z;
+                //Set the following to integer to get rid of decimals!
+                double y = calcLine(x1, y1, x2, y2, Y_CALC, w);
+
+                //printf("calcLine Result: %f\n h: %d\n", y, h);
+                if ((int)y == h)
+                {
+                    //printf("DRAW STUFF!!!!\n");
+                    rgbcolor white = {255, 255, 255};
+                    placePoint(w, h, white);
+                }
+
+            }
+        //printf("done!\n");
+
+        }
+    }
+}
+
 int main(int argc, char *argv[])
+{
+    freopen("CON", "w", stdout); // redirects stdout
+    freopen("CON", "w", stderr); // redirects stderr
+    surface = SDL_SetVideoMode(W, H, 32, 0);
+
+    SDL_EnableKeyRepeat(150, 30);
+    SDL_ShowCursor(SDL_DISABLE);
+
+    for(;;)
+    {
+        SDL_LockSurface(surface);
+        drawScreen2();
+        SDL_UnlockSurface(surface);
+        SDL_Flip(surface);
+
+
+        SDL_Event ev;
+        while(SDL_PollEvent(&ev))
+        {
+            switch(ev.type)
+            {
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                    switch(ev.key.keysym.sym)
+                    {
+                        case 'q': goto done;
+                        case 'a':
+                            viewAngleH += 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'd':
+                            viewAngleH -= 1;
+                            playerViewVect.x = cos(viewAngleH*(PI/180));
+                            playerViewVect.y = sin(viewAngleH*(PI/180));
+                            break;
+                        case 'w':
+                            playerPos.x += MVCNT*cos(playerViewVect.x);
+                            playerPos.y += MVCNT*sin(playerViewVect.y);
+                            break;
+                        case 's':
+                            playerPos.x -= MVCNT*playerViewVect.x;
+                            playerPos.y -= MVCNT*playerViewVect.y;
+                            break;
+                        default: break;
+                    }
+                    break;
+                case SDL_QUIT: goto done;
+            }
+        }
+        SDL_Delay(10);
+    }
+done:
+    SDL_Quit();
+    return 0;
+}
+
+//main func
+/*int main(int argc, char *argv[])
 {
     surface = SDL_SetVideoMode(W, H, 32, 0);
 
@@ -277,13 +451,13 @@ int main(int argc, char *argv[])
                             playerViewVect.x = cos(viewAngleH*(PI/180));
                             playerViewVect.y = sin(viewAngleH*(PI/180));
                             break;
-                        case 'w': 
-                            playerPos.x += MVCNT*cos(playerViewVect.x); 
+                        case 'w':
+                            playerPos.x += MVCNT*cos(playerViewVect.x);
                             playerPos.y += MVCNT*sin(playerViewVect.y);
                             break;
-                        case 's': 
+                        case 's':
                             playerPos.x -= MVCNT*playerViewVect.x;
-                            playerPos.y -= MVCNT*playerViewVect.y; 
+                            playerPos.y -= MVCNT*playerViewVect.y;
                             break;
                         default: break;
                     }
@@ -296,4 +470,4 @@ int main(int argc, char *argv[])
 done:
     SDL_Quit();
     return 0;
-}
+}*/
