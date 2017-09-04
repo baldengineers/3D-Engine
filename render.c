@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "structs.h"
+#include "image.c"
+
 
 //definitions
 #define H 600
@@ -276,6 +278,28 @@ int drawLine(int p1x, int p1y, int p2x, int p2y, rgbcolor color)
     }
 }
 
+void drawImage(int sx, int sy, short int bin_data[])
+{
+    //int sx and int sy are offset values from origin
+    //bin_data is an array of all the pixels in an image (1D)
+    int i,x,y;
+    i = 0;
+    for( y = 0; y < H; y++)
+    {
+        for (x = 0; x < W; x++)
+        {
+            rgbcolor cc;
+            cc.r = bin_data[i];
+            cc.g = bin_data[i+1];
+            cc.b = bin_data[i+2];
+//            printf("color: {%d,%d,%d}\n",cc.r,cc.g,cc.b);
+            placePoint(sx+x, sy+y, cc);
+            i += 3;
+//            sleep(1);
+        }
+    }
+}
+
 int renderLine(line_segment ln)
 {
     int l1x, l2x, l1y, l2y;
@@ -314,7 +338,6 @@ void drawScreen()
             placePoint(i,j,c);
         }
     }
-
     line_segment ln1 = { {15,2,3}, {20,-2,2}, {255,255,255} };
     line_segment ln2 = { {15,2,3}, {15,2,0}, {255,255,255} };
     line_segment ln3 = { {15,2,0}, {20,-2,0}, {255,255,255} };
@@ -369,6 +392,7 @@ void drawScreen2()
         }
     }
 
+    drawImage(100,100,grad_data);
     plane cameraPlane = getCameraPlaneCoords();
 
     int w, h;
