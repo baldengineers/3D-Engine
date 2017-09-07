@@ -21,6 +21,8 @@
 #define PI 3.1415926
 #define MVCNT 10
 #define TRI_AMNT 3
+#define MAXFLOAT 3.402823e+38
+
 
 static SDL_Surface *surface = NULL;
 vector playerPos = {0,0,0};
@@ -401,6 +403,16 @@ plane getCameraPlaneCoords()
     return cameraPlane;
 }
 
+void resetDepthBuffer(void)
+{
+    int i,j;
+    for (i = 0; i < W; i++)
+        for(j = 0; j < H; j++)
+        {
+            depthBuffer[i][j] = MAXFLOAT;
+        }
+}
+
 void drawScreen2()
 {
 
@@ -413,7 +425,7 @@ void drawScreen2()
             placePoint(i,j,c);
         }
     }
-
+    resetDepthBuffer();
     //drawImage(100,100,grad_data);
     plane cameraPlane = getCameraPlaneCoords();
 
@@ -425,58 +437,13 @@ void drawScreen2()
             //Get the intersection point of a ray casted from a vertex to the playerPos with the camera plane
             vector direction = subtractVector(playerPos, triangles[j].vertices[i]);
             faceVertices[j][i] = getIntersection(cameraPlane, (line){triangles[j].vertices[i], direction});
+            double ty = faceVertices[j][i].y;
+            double tz = faceVertices[j][i].z;
+            faceVertices[j][i].x = -1*ty + W/2;
+            faceVertices[j][i].y = -1*tz + H/2;
+            faceVertices[j][i].z = triangles[j].vertices[i].x; //simply the depth of the point in 3d space
         }
     }
-    //Rasterization
-    //Iterate through the triangles in scene:
-
-/*
-    for (i = 0; i < TRI_AMNT; i++)
-    {
-        //Iterate through pixels in window
-        for (w = 0; w < W; w++)
-        {
-            for (h = 0; h < H; h++)
-            {
-                //use y and z values because x is always constant (how far it is from player)
-                for (j = 0; j < 3; j++)
-                {
-                    double x1 = -1*faceVertices[i][j].y;
-                    double y1 = faceVertices[i][j].z;
-                    double x2,y2;
-                    if (j == 2)
-                    {
-                        x2 = -1*faceVertices[i][0].y;
-                        y2 = faceVertices[i][0].z;
-                    }
-                    else
-                    {
-                        x2 = -1*faceVertices[i][j+1].y;
-                        y2 = faceVertices[i][j+1].z;
-                    }
-                    //Set the following to integer to get rid of decimals!
-                    double y = calcLine(x1, y1, x2, y2, Y_CALC, (w- W/2));
-
-                    double ymax = y1; double ymin = y2;
-                    double xmax = x1; double xmin = x2;
-                    if ( y2 > y1) { ymax = y2; ymin = y1; }
-                    if ( x2 > x1) { xmax = x2; xmin = x1; }
-
-                    //printf("calcLine Result: %f\n h: %d\n", y, h);
-                    if (((int)y == (-1*h + (H/2))) && (y <= ymax) && (y >= ymin) && ( w-W/2 >= xmin ) && ( w-W/2 <= xmax ))
-                    {
-                        //printf("DRAW STUFF!!!!\n");
-                        rgbcolor white = {255, 255, 255};
-                        placePoint(w, h, white);
-                    }
-                }
-
-            }
-        //printf("done!\n");
-
-        }
-    }
-    */
 
 
     for (i = 0; i < TRI_AMNT; i++)
@@ -489,8 +456,8 @@ void drawScreen2()
         
         for (j = 0; j < 3; j++)
         {
-            double x = -1*faceVertices[i][j].y;
-            double y = faceVertices[i][j].z;
+            double x = faceVertices[i][j].x;
+            double y = faceVertices[i][j].y;
             if (x > xMax)
                 xMax = x;
             if (y > yMax)
@@ -499,38 +466,13 @@ void drawScreen2()
                 xMin = x;
             if (y < yMin)
                 yMin = y;
-            //printf("x: %f, y: %f\n", x, y);
-            /*
-            double x1 = -1*faceVertices[i][j].y;
-            double y1 = faceVertices[i][j].z;
-            double x2,y2;
-            rgbcolor white = {255,255,255};
-            if (j == 2)
-            {
-                x2 = -1*faceVertices[i][0].y;
-                y2 = faceVertices[i][0].z;
-                if ( triangles[i].vertices[0].x > 0 && triangles[i].vertices[j].x > 0)
-                {
-                    drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), triangles[i].color);
-                }
-            }
-            else
-            {
-                x2 = -1*faceVertices[i][j+1].y;
-                y2 = faceVertices[i][j+1].z;
-                if ( triangles[i].vertices[j+1].x > 0 && triangles[i].vertices[j].x > 0 )
-                {
-                    drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), triangles[i].color);
-                }
-            }
-            */
         }
-		yMin = -1*yMin + H/2;
-		yMax = -1*yMax + H/2;
-		xMin = xMin + W/2;
-		xMax = xMax + W/2;
-        int yMinF = yMax; //"Fixed" yMin
-        int yMaxF = yMin; //"Fixed" yMax
+        yMin = yMin;
+	yMax = yMax;
+	xMin = xMin;
+	xMax = xMax;
+        int yMinF = yMin; //"Fixed" yMin
+        int yMaxF = yMax; //"Fixed" yMax
         if (yMinF < 0)  
 			yMinF = 0;
         if (yMaxF >= H) 
@@ -539,29 +481,29 @@ void drawScreen2()
 			xMin = 0;
         if (xMax >= W) 	
 			xMax = W-1;
-        printf("xMax: %d, yMax: %d, xMin: %d, yMin: %d\n", xMax, yMaxF, xMin, yMinF);
+        //printf("xMax: %d, yMax: %d, xMin: %d, yMin: %d\n", xMax, yMaxF, xMin, yMinF);
         for ( w = xMin; w <= xMax; w++) //replace with yMinF, yMaxF when working
         {
             for (h = yMinF; h <= yMaxF; h++) //replace with xMin, xMax when working
             {
-                //printf("h = %d, w = %d\n", h, w);
+                printf("h = %d, w = %d\n", h, w);
                 if (h >= 0 && h < H && w >= 0 && w < W)
                 {
                     vector pixel;
-					pixel.x = w - W/2;
-					pixel.y = H/2 - h;
+					pixel.x = w;
+					pixel.y = h;
 
                     vector a;
-                    a.x = -1*faceVertices[i][0].y;
-                    a.y = faceVertices[i][0].z;
+                    a.x = faceVertices[i][0].x;
+                    a.y = faceVertices[i][0].y;
 
                     vector b;
-                    b.x = -1*faceVertices[i][1].y;
-                    b.y = faceVertices[i][1].z;
+                    b.x = faceVertices[i][1].x;
+                    b.y = faceVertices[i][1].y;
 
                     vector c;
-                    c.x = -1*faceVertices[i][2].y;
-                    c.y = faceVertices[i][2].z;
+                    c.x = faceVertices[i][2].x;
+                    c.y = faceVertices[i][2].y;
 
                     if (pointInTriangle(pixel, a, b, c))
                     {
@@ -578,8 +520,10 @@ void drawScreen2()
 
 int main(int argc, char *argv[])
 {
+    #ifndef _UNISTD_H
     freopen("CON", "w", stdout); // redirects stdout
     freopen("CON", "w", stderr); // redirects stderr
+    #endif
     surface = SDL_SetVideoMode(W, H, 32, 0);
 
     SDL_EnableKeyRepeat(150, 30);
