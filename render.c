@@ -481,11 +481,12 @@ void drawScreen2()
 
     for (i = 0; i < TRI_AMNT; i++)
     {
-        double xMax = 0;
-        double yMax = 0;
-        double xMin = W;
-        double yMin = H;
-
+        int xMax = 0;
+        int yMax = 0;
+        int xMin = W;
+        int yMin = H;
+        
+        
         for (j = 0; j < 3; j++)
         {
             double x = -1*faceVertices[i][j].y;
@@ -528,8 +529,8 @@ void drawScreen2()
 		yMax = -1*yMax + H/2;
 		xMin = xMin + W/2;
 		xMax = xMax + W/2;
-        double yMinF = yMax; //"Fixed" yMin
-        double yMaxF = yMin; //"Fixed" yMax
+        int yMinF = yMax; //"Fixed" yMin
+        int yMaxF = yMin; //"Fixed" yMax
         if (yMinF < 0)  
 			yMinF = 0;
         if (yMaxF >= H) 
@@ -538,10 +539,10 @@ void drawScreen2()
 			xMin = 0;
         if (xMax >= W) 	
 			xMax = W-1;
-        printf("xMax: %f, yMax: %f, xMin: %f, yMin: %f\n", xMax, yMaxF, xMin, yMinF);
-        for (w = (int)0; w < W; w++) //replace with yMinF, yMaxF when working
+        printf("xMax: %d, yMax: %d, xMin: %d, yMin: %d\n", xMax, yMaxF, xMin, yMinF);
+        for ( w = xMin; w <= xMax; w++) //replace with yMinF, yMaxF when working
         {
-            for (h = (int)0; h < H; h++) //replace with xMin, xMax when working
+            for (h = yMinF; h <= yMaxF; h++) //replace with xMin, xMax when working
             {
                 //printf("h = %d, w = %d\n", h, w);
                 if (h >= 0 && h < H && w >= 0 && w < W)
@@ -571,6 +572,7 @@ void drawScreen2()
                 }
             }
         }
+        
     }
 }
 
