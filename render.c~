@@ -504,12 +504,37 @@ void drawScreen2()
                     vector c;
                     c.x = faceVertices[i][2].x;
                     c.y = faceVertices[i][2].y;
+                    
+                    vector va = faceVertices[i][0];
+                    vector vb = faceVertices[i][1];
+                    vector vc = faceVertices[i][2];
+                    vector p = {w, h, 0};
+                    vector v0 = subtractVector(vb,va);
+                    vector v1 = subtractVector(vc,va);
+                    vector v2 = subtractVector(p,va);
+                    
+                    double d00 = dotProduct(v0, v0);
+                    double d01 = dotProduct(v0, v1);
+                    double d11 = dotProduct(v1, v1);
+                    double d20 = dotProduct(v2, v0);
+                    double d21 = dotProduct(v2, v1);
+                    
+                    double denom = d00 * d11 - d01 * d01;
+                    double l0 = (d11 * d20 - d01 * d21) / denom;
+                    double l1 = (d00 * d21 - d01 * d20) / denom;
+                    double l2 = 1.0 - l0 - l0;
+                    
+                    
+                    
+                    double pointDepth = 1 / ( (1/faceVertices[i][0].z) * l0 + (1/faceVertices[i][1].z) * l1 + (1/faceVertices[i][2].z) * l2 );
 
                     if (pointInTriangle(pixel, a, b, c))
                     {
-                        //printf("yay!\n");
-                        rgbcolor white = {255, 255, 255};
-                        placePoint(w, h, white);
+                        if (pointDepth < depthBuffer[w][h]) 
+                        {
+                            placePoint(w, h, triangles[i].color);
+                            depthBuffer[w][h] = pointDepth;
+                        }
                     }
                 }
             }
@@ -520,7 +545,7 @@ void drawScreen2()
 
 int main(int argc, char *argv[])
 {
-    #ifndef _UNISTD_H
+    #ifdef _WIN32
     freopen("CON", "w", stdout); // redirects stdout
     freopen("CON", "w", stderr); // redirects stderr
     #endif
@@ -530,14 +555,14 @@ int main(int argc, char *argv[])
     SDL_ShowCursor(SDL_DISABLE);
 
 
-    triangles[0].vertices[0] = (vector){300, -100, 200};
-    triangles[0].vertices[1] = (vector){300, -50, 300};
-    triangles[0].vertices[2] = (vector){300, 150, -200};
-    triangles[0].color       = (rgbcolor){0,   0, 255};
-    triangles[1].vertices[0] = (vector){250, -100, 200};
-    triangles[1].vertices[1] = (vector){250, -50, 300};
-    triangles[1].vertices[2] = (vector){250, 150, -200};
-    triangles[1].color       = (rgbcolor){255,255,255};
+    triangles[1].vertices[0] = (vector){300, -100, 200};
+    triangles[1].vertices[1] = (vector){300, -50, 300};
+    triangles[1].vertices[2] = (vector){300, 150, -200};
+    triangles[1].color       = (rgbcolor){0,   0, 255};
+    triangles[0].vertices[0] = (vector){250, -100, 200};
+    triangles[0].vertices[1] = (vector){250, -50, 300};
+    triangles[0].vertices[2] = (vector){250, 150, -200};
+    triangles[0].color       = (rgbcolor){255,255,255};
     triangles[2].vertices[0] = (vector){200, -100, 200};
     triangles[2].vertices[1] = (vector){200, -50, 300};
     triangles[2].vertices[2] = (vector){200, 150, -200};
