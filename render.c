@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "structs.h"
-#include "image.c"
+//#include "image.c"
 
 
 //definitions
@@ -48,6 +48,21 @@ vector subtractVector(vector va, vector vb)
 {
     vector rv = {va.x - vb.x, va.y - vb.y, va.z - vb.z};
     return rv;
+}
+
+int pointInTriangle(vector s, vector a, vector b, vector c)
+{
+    //from stack overflow
+    int as_x = s.x - a.x;
+    int as_y = s.y - a.y;
+
+    int s_ab = (b.x - a.x) * as_y - (b.y - a.y) * as_x > 0;
+
+    if ((c.x - a.x) * as_y - (c.y - a.y) * as_x > 0 == s_ab) {return 0;}
+
+    if ((c.x - b.x) * (s.y - b.y) - (c.y - b.y) * (s.x - b.x) > 0 != s_ab) {return 0;}
+
+    return 1;
 }
 
 void setFaces(model_t *m, face_t *faces, int facec)
@@ -193,6 +208,13 @@ void moveY(float distance)
         }
     }
 }
+
+/*
+bool withinTriangle(int w, int h, vector &vertices[3])
+{
+    vertices[0].x;
+}
+*/
 
 double calcLine(double p1x, double p1y, double p2x, double p2y, int type, int input)
 {
@@ -392,7 +414,7 @@ void drawScreen2()
         }
     }
 
-    drawImage(100,100,grad_data);
+    //drawImage(100,100,grad_data);
     plane cameraPlane = getCameraPlaneCoords();
 
     int w, h;
@@ -434,7 +456,7 @@ void drawScreen2()
                     }
                     //Set the following to integer to get rid of decimals!
                     double y = calcLine(x1, y1, x2, y2, Y_CALC, (w- W/2));
-                    
+
                     double ymax = y1; double ymin = y2;
                     double xmax = x1; double xmin = x2;
                     if ( y2 > y1) { ymax = y2; ymin = y1; }
@@ -455,10 +477,29 @@ void drawScreen2()
         }
     }
     */
+
+
     for (i = 0; i < TRI_AMNT; i++)
     {
+        double xMax = 0;
+        double yMax = 0;
+        double xMin = W;
+        double yMin = H;
+
         for (j = 0; j < 3; j++)
         {
+            double x = -1*faceVertices[i][j].y;
+            double y = faceVertices[i][j].z;
+            if (x > xMax)
+                xMax = x;
+            if (y > yMax)
+                yMax = y;
+            if (x < xMin)
+                xMin = x;
+            if (y < yMin)
+                yMin = y;
+            //printf("x: %f, y: %f\n", x, y);
+            /*
             double x1 = -1*faceVertices[i][j].y;
             double y1 = faceVertices[i][j].z;
             double x2,y2;
@@ -481,15 +522,62 @@ void drawScreen2()
                     drawLine( (int)x1 + (W/2), -1*(int)y1 + (H/2), (int)x2 + (W/2), -1*(int)y2 + (H/2), triangles[i].color);
                 }
             }
+            */
         }
-    
+		yMin = -1*yMin + H/2;
+		yMax = -1*yMax + H/2;
+		xMin = xMin + W/2;
+		xMax = xMax + W/2;
+        double yMinF = yMax; //"Fixed" yMin
+        double yMaxF = yMin; //"Fixed" yMax
+        if (yMinF < 0)  
+			yMinF = 0;
+        if (yMaxF >= H) 
+			yMaxF = H-1;
+        if (xMin < 0)  	
+			xMin = 0;
+        if (xMax >= W) 	
+			xMax = W-1;
+        printf("xMax: %f, yMax: %f, xMin: %f, yMin: %f\n", xMax, yMaxF, xMin, yMinF);
+        for (w = (int)0; w < W; w++) //replace with yMinF, yMaxF when working
+        {
+            for (h = (int)0; h < H; h++) //replace with xMin, xMax when working
+            {
+                //printf("h = %d, w = %d\n", h, w);
+                if (h >= 0 && h < H && w >= 0 && w < W)
+                {
+                    vector pixel;
+					pixel.x = w - W/2;
+					pixel.y = H/2 - h;
+
+                    vector a;
+                    a.x = -1*faceVertices[i][0].y;
+                    a.y = faceVertices[i][0].z;
+
+                    vector b;
+                    b.x = -1*faceVertices[i][1].y;
+                    b.y = faceVertices[i][1].z;
+
+                    vector c;
+                    c.x = -1*faceVertices[i][2].y;
+                    c.y = faceVertices[i][2].z;
+
+                    if (pointInTriangle(pixel, a, b, c))
+                    {
+                        //printf("yay!\n");
+                        rgbcolor white = {255, 255, 255};
+                        placePoint(w, h, white);
+                    }
+                }
+            }
+        }
     }
 }
 
 int main(int argc, char *argv[])
 {
-//    freopen("CON", "w", stdout); // redirects stdout
-//    freopen("CON", "w", stderr); // redirects stderr
+    freopen("CON", "w", stdout); // redirects stdout
+    freopen("CON", "w", stderr); // redirects stderr
     surface = SDL_SetVideoMode(W, H, 32, 0);
 
     SDL_EnableKeyRepeat(150, 30);

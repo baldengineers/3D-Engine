@@ -53,4 +53,10 @@ typedef struct model
     face_t *faces;
 } model_t;
 
+typedef struct bounding_box
+{
+    vector pointA;
+    vector pointB;
+} bounding_box_t; //UNUSED
+
 #endif
