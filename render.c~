@@ -152,6 +152,11 @@ void readGeometry()
 
 }
 
+double edgeFunction(vector a, vector b, vector c)
+{
+    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x); 
+}
+
 //disp funcs
 void printVector(vector v)
 {
@@ -409,7 +414,7 @@ void resetDepthBuffer(void)
     for (i = 0; i < W; i++)
         for(j = 0; j < H; j++)
         {
-            depthBuffer[i][j] = MAXFLOAT;
+            depthBuffer[i][j] = 0;
         }
 }
 
@@ -481,6 +486,24 @@ void drawScreen2()
 			xMin = 0;
         if (xMax >= W) 	
 			xMax = W-1;
+	
+	vector a;
+        a.x = faceVertices[i][0].x;
+        a.y = faceVertices[i][0].y;
+        a.z = faceVertices[i][0].z;
+        
+        vector b;
+        b.x = faceVertices[i][1].x;
+        b.y = faceVertices[i][1].y;
+        b.z = faceVertices[i][1].z;
+
+        vector c;
+        c.x = faceVertices[i][2].x;
+        c.y = faceVertices[i][2].y;
+        c.z = faceVertices[i][2].z;
+                    		
+        float area = edgeFunction(a,b,c);			
+			
         //printf("xMax: %d, yMax: %d, xMin: %d, yMin: %d\n", xMax, yMaxF, xMin, yMinF);
         for ( w = xMin; w <= xMax; w++) //replace with yMinF, yMaxF when working
         {
@@ -492,54 +515,32 @@ void drawScreen2()
                     vector pixel;
 					pixel.x = w;
 					pixel.y = h;
+					pixel.z = 0;
 
-                    vector a;
-                    a.x = faceVertices[i][0].x;
-                    a.y = faceVertices[i][0].y;
-
-                    vector b;
-                    b.x = faceVertices[i][1].x;
-                    b.y = faceVertices[i][1].y;
-
-                    vector c;
-                    c.x = faceVertices[i][2].x;
-                    c.y = faceVertices[i][2].y;
+                    float w0 = edgeFunction(b, c, pixel);
+                    float w1 = edgeFunction(c, a, pixel);
+                    float w2 = edgeFunction(a, b, pixel);
                     
-                    vector va = faceVertices[i][0];
-                    vector vb = faceVertices[i][1];
-                    vector vc = faceVertices[i][2];
-                    vector p = {w, h, 0};
-                    vector v0 = subtractVector(vb,va);
-                    vector v1 = subtractVector(vc,va);
-                    vector v2 = subtractVector(p,va);
-                    
-                    double d00 = dotProduct(v0, v0);
-                    double d01 = dotProduct(v0, v1);
-                    double d11 = dotProduct(v1, v1);
-                    double d20 = dotProduct(v2, v0);
-                    double d21 = dotProduct(v2, v1);
-                    
-                    double denom = d00 * d11 - d01 * d01;
-                    double l0 = (d11 * d20 - d01 * d21) / denom;
-                    double l1 = (d00 * d21 - d01 * d20) / denom;
-                    double l2 = 1.0 - l0 - l0;
-                    
-                    
-                    
-                    double pointDepth = 1 / ( (1/faceVertices[i][0].z) * l0 + (1/faceVertices[i][1].z) * l1 + (1/faceVertices[i][2].z) * l2 );
-
-                    if (pointInTriangle(pixel, a, b, c))
+                    if (w0 >= 0 && w1 >= 0 && w2 >= 0)
                     {
-                        if (pointDepth < depthBuffer[w][h]) 
-                        {
-                            placePoint(w, h, triangles[i].color);
-                            depthBuffer[w][h] = pointDepth;
+                        w0 /= area;
+                        w1 /= area;
+                        w2 /= area;
+                        
+                        double pointDepth = 1 / ( a.z * w0 + b.z * w1 + c.z * w2);
+                        
+                        if (pointInTriangle(pixel, a, b, c))
+                        { 
+                            if (pointDepth > depthBuffer[w][h] && pointDepth > 0) 
+                            {
+                                placePoint(w, h, triangles[i].color);
+                                depthBuffer[w][h] = pointDepth;
+                            }
                         }
                     }
                 }
             }
         }
-        
     }
 }
 
