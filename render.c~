@@ -20,7 +20,7 @@
 #define VFOV 45
 #define PI 3.1415926
 #define MVCNT 10
-#define TRI_AMNT 3
+#define TRI_AMNT 4
 #define MAXFLOAT 3.402823e+38
 
 

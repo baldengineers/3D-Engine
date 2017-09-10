@@ -529,14 +529,11 @@ void drawScreen2()
                         
                         double pointDepth = (1 / ( a.z * w0 + b.z * w1 + c.z * w2))*100;
                         
-                        if (pointInTriangle(pixel, a, b, c))
-                        { 
                             if (pointDepth > depthBuffer[w][h] && pointDepth > 0) 
                             {
                                 placePoint(w, h, triangles[i].color);
                                 depthBuffer[w][h] = pointDepth;
                             }
-                        }
                     }
                 }
             }
