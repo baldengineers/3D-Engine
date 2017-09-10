@@ -6,7 +6,7 @@
 
 #include "structs.h"
 //#include "image.c"
-
+#include "model.c"
 
 //definitions
 #define H 600
@@ -20,7 +20,7 @@
 #define VFOV 45
 #define PI 3.1415926
 #define MVCNT 10
-#define TRI_AMNT 3
+#define TRI_AMNT 4
 #define MAXFLOAT 3.402823e+38
 
 
@@ -555,7 +555,7 @@ int main(int argc, char *argv[])
     SDL_EnableKeyRepeat(150, 30);
     SDL_ShowCursor(SDL_DISABLE);
 
-
+/*
     triangles[1].vertices[0] = (vector){300, -100, 200};
     triangles[1].vertices[1] = (vector){300, -50, 300};
     triangles[1].vertices[2] = (vector){300, 150, -200};
@@ -568,7 +568,12 @@ int main(int argc, char *argv[])
     triangles[2].vertices[1] = (vector){200, -50, 300};
     triangles[2].vertices[2] = (vector){200, 150, -200};
     triangles[2].color       = (rgbcolor){255,  0,  0};
-
+*/
+    int i;
+    for ( i = 0; i < 4; i++)
+    {
+        triangles[i] = model[i];
+    }
 
 
     for(;;)
